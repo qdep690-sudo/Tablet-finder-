@@ -4,363 +4,206 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Smart Pharmacy Box Locator with Validation</title>
-    <!-- Tailwind CSS -->
+
     <script src="https://cdn.tailwindcss.com"></script>
+
     <!-- SheetJS Library for Excel parsing -->
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 </head>
+
 <body class="bg-slate-100 min-h-screen p-4 sm:p-6">
+
     <div class="max-w-2xl mx-auto space-y-6">
-        
-        <!-- Header & API Key Setup -->
-        <header class="bg-white p-5 sm:p-6 rounded-2xl shadow-sm space-y-4">
-            <div>
-                <h1 class="text-xl sm:text-2xl font-bold text-blue-600">Mahalakshmi Medicals and Surgicals</h1>
-                <!-- <p class="text-xs sm:text-sm text-slate-500 mt-1">Validated inventory with Gemini AI composition fallback.</p> -->
-            </div>
-            <!-- API Key Bar -->
-            <!-- <div class="bg-slate-50 p-3 rounded-xl border border-slate-200 flex flex-col sm:flex-row gap-2 items-center">
-                <input type="password" id="apiKeyInput" placeholder="Enter Gemini API Key..." 
-                    class="w-full sm:flex-1 p-2 text-xs border border-slate-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500">
-                <button id="saveApiKey" class="w-full sm:w-auto bg-slate-800 hover:bg-slate-900 text-white text-xs px-4 py-2 rounded-lg font-medium">
-                    Save Key
-                </button>
-            </div> -->
+
+        <!-- HEADER -->
+        <header class="bg-white p-5 sm:p-6 rounded-2xl shadow-sm">
+            <h1 class="text-xl sm:text-2xl font-bold text-blue-600">
+                Mahalakshmi Medicals and Surgicals
+            </h1>
         </header>
 
-        <!-- Search Section -->
+        <!-- SEARCH -->
         <section class="bg-white p-5 sm:p-6 rounded-2xl shadow-sm space-y-3">
-            <h2 class="text-base sm:text-lg font-semibold text-slate-700">Find Tablet / Composition</h2>
+
+            <h2 class="text-base sm:text-lg font-semibold text-slate-700">
+                Find Tablet / Composition
+            </h2>
+
             <div class="relative">
-                <input type="text" id="searchInput" placeholder="Type brand name (e.g., Crocin 650)..." 
-                    class="w-full p-3.5 sm:p-3 text-base border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <input
+                    type="text"
+                    id="searchInput"
+                    placeholder="Type brand name (e.g., Crocin 650)..."
+                    class="w-full p-3.5 text-base border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
             </div>
-            
+
             <div id="searchResults" class="mt-4 space-y-2">
-                <p class="text-sm text-slate-400 italic">Start typing to search inventory...</p>
+                <p class="text-sm text-slate-400 italic">
+                    Start typing to search inventory...
+                </p>
             </div>
+
         </section>
 
-        <!-- Entry Grid -->
+        <!-- ENTRY GRID -->
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-            
-            <!-- Manual Form Entry -->
+
+            <!-- MANUAL ENTRY -->
             <section class="bg-white p-5 sm:p-6 rounded-2xl shadow-sm">
-                <h2 class="text-base sm:text-lg font-semibold text-slate-700 mb-3">Manual Entry</h2>
+
+                <h2 class="text-base sm:text-lg font-semibold text-slate-700 mb-3">
+                    Manual Entry
+                </h2>
+
                 <form id="manualForm" class="space-y-4">
+
+                    <!-- BRAND -->
                     <div>
-                        <label class="block text-xs font-medium text-slate-600 mb-1">Brand Name <span class="text-red-500">*</span></label>
+
+                        <label class="block text-xs font-medium text-slate-600 mb-1">
+                            Brand Name <span class="text-red-500">*</span>
+                        </label>
+
                         <div class="flex gap-2">
-                            <input type="text" id="brandName" placeholder="e.g. Dolo 650" class="w-full p-3 sm:p-2.5 text-base sm:text-sm border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500" required>
-                            <button type="button" id="aiFillBtn" class="bg-purple-100 text-purple-700 hover:bg-purple-200 text-xs px-3 rounded-xl font-semibold border border-purple-200 whitespace-nowrap" title="Auto-fill composition using Gemini AI">
+
+                            <input
+                                type="text"
+                                id="brandName"
+                                placeholder="e.g. Dolo 650"
+                                class="w-full p-3 text-base border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                required
+                            >
+
+                            <button
+                                type="button"
+                                id="aiFillBtn"
+                                class="bg-purple-100 text-purple-700 hover:bg-purple-200 text-xs px-3 rounded-xl font-semibold border border-purple-200 whitespace-nowrap"
+                                title="Auto-fill composition using Gemini AI"
+                            >
                                 ✨ AI Fill
                             </button>
+
                         </div>
+
                     </div>
+
+                    <!-- COMPOSITION -->
                     <div>
-                        <label class="block text-xs font-medium text-slate-600 mb-1">Composition / Salt <span class="text-red-500">*</span></label>
-                        <input type="text" id="composition" placeholder="Auto-filled or manual salt name" class="w-full p-3 sm:p-2.5 text-base sm:text-sm border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500" required>
+
+                        <label class="block text-xs font-medium text-slate-600 mb-1">
+                            Composition / Salt
+                        </label>
+
+                        <input
+                            type="text"
+                            id="composition"
+                            placeholder="Auto-filled or manual salt name"
+                            class="w-full p-3 text-base border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        >
+
                     </div>
+
+                    <!-- BOX LOCATION -->
                     <div>
-                        <label class="block text-xs font-medium text-slate-600 mb-1">Box Location <span class="text-red-500">*</span> <span class="text-[10px] text-slate-400">(Format: Letter + Number, e.g., A1)</span></label>
-                        <input type="text" id="boxLocation" placeholder="e.g. A1" class="w-full p-3 sm:p-2.5 text-base sm:text-sm border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 uppercase" required>
+
+                        <label class="block text-xs font-medium text-slate-600 mb-1">
+                            Box Location
+                            <span class="text-red-500">*</span>
+                            <span class="text-[10px] text-slate-400">
+                                (Format: Letter + Number, e.g., A1)
+                            </span>
+                        </label>
+
+                        <input
+                            type="text"
+                            id="boxLocation"
+                            placeholder="e.g. A1"
+                            class="w-full p-3 text-base border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 uppercase"
+                            required
+                        >
+
                     </div>
-                    <button type="submit" class="w-full bg-blue-600 active:bg-blue-800 text-white p-3.5 sm:p-3 rounded-xl font-semibold shadow-md transition-colors">
+
+                    <button
+                        type="submit"
+                        class="w-full bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white p-3 rounded-xl font-semibold shadow-md"
+                    >
                         Save Location
                     </button>
+
                 </form>
+
             </section>
 
-            <!-- Excel Upload -->
-            <section class="bg-white p-5 sm:p-6 rounded-2xl shadow-sm flex flex-col justify-between">
-                <div>
-                    <h2 class="text-base sm:text-lg font-semibold text-slate-700 mb-3">Upload Excel File</h2>
-                    <p class="text-xs text-slate-500 mb-4 leading-relaxed">
-                        Required columns: <code class="bg-slate-100 text-slate-700 px-1 py-0.5 rounded font-mono">brand_name</code>, <code class="bg-slate-100 text-slate-700 px-1 py-0.5 rounded font-mono">box_location</code>. Box codes must follow format like <strong>A1</strong>.
-                    </p>
-                </div>
+            <!-- EXCEL UPLOAD -->
+            <section class="bg-white p-5 sm:p-6 rounded-2xl shadow-sm">
+
+                <h2 class="text-base sm:text-lg font-semibold text-slate-700 mb-3">
+                    Upload Excel File
+                </h2>
+
+                <p class="text-xs text-slate-500 mb-4 leading-relaxed">
+
+                    Accepted columns can include:
+
+                    <code class="bg-slate-100 text-slate-700 px-1 py-0.5 rounded font-mono">
+                        brand_name
+                    </code>,
+                    <code class="bg-slate-100 text-slate-700 px-1 py-0.5 rounded font-mono">
+                        medicine name
+                    </code>,
+                    <code class="bg-slate-100 text-slate-700 px-1 py-0.5 rounded font-mono">
+                        drug name
+                    </code>
+
+                    and similar composition/location names.
+
+                </p>
+
+                <!-- FILE INPUT + REMOVE BUTTON -->
                 <div class="space-y-4">
-                    <input type="file" id="excelFile" accept=".xlsx, .xls" class="w-full p-2.5 text-sm border border-slate-300 rounded-xl file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
-                    <button id="uploadBtn" class="w-full bg-emerald-600 active:bg-emerald-800 text-white p-3.5 sm:p-3 rounded-xl font-semibold shadow-md transition-colors">
+
+                    <div class="flex items-center gap-2">
+
+                        <input
+                            type="file"
+                            id="excelFile"
+                            accept=".xlsx,.xls"
+                            class="flex-1"
+                        >
+
+                        <!-- REMOVE FILE BUTTON -->
+                        <button
+                            type="button"
+                            id="removeFileBtn"
+                            title="Remove selected file"
+                            aria-label="Remove selected file"
+                            class="hidden text-red-600 hover:text-red-800 text-3xl font-bold px-3"
+                        >
+                            ×
+                        </button>
+
+                    </div>
+
+                    <button
+                        type="button"
+                        id="uploadBtn"
+                        class="w-full bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white p-3 rounded-xl font-semibold shadow-md"
+                    >
                         Process & Import Excel
                     </button>
+
                 </div>
+
             </section>
 
         </div>
+
     </div>
 
-    <script>
-        // Load API Key setup
-        const apiKeyInput = document.getElementById('apiKeyInput');
-        if (localStorage.getItem('gemini_api_key')) {
-            apiKeyInput.value = localStorage.getItem('gemini_api_key');
-        }
+    <!-- SEPARATE JAVASCRIPT -->
+    <script src="script.js"></script>
 
-        document.getElementById('saveApiKey').addEventListener('click', () => {
-            const key = apiKeyInput.value.trim();
-            if (key) {
-                localStorage.setItem('gemini_api_key', key);
-                alert('Gemini API Key saved successfully!');
-            } else {
-                localStorage.removeItem('gemini_api_key');
-                alert('API Key cleared.');
-            }
-        });
-
-        // Initial Mock Data
-        if (!localStorage.getItem('pharmacy_inventory_v4')) {
-            const initialData = [
-                { brand_name: 'Dolo 650', composition: 'Paracetamol 650mg', box_location: 'A1' },
-                { brand_name: 'Crocin 500', composition: 'Paracetamol 500mg', box_location: 'A2' },
-                { brand_name: 'Augmentin 625 Duo', composition: 'Amoxicillin 500mg + Clavulanic Acid 125mg', box_location: 'C3' }
-            ];
-            localStorage.setItem('pharmacy_inventory_v4', JSON.stringify(initialData));
-        }
-
-        function getInventory() {
-            return JSON.parse(localStorage.getItem('pharmacy_inventory_v4')) || [];
-        }
-
-        // Box validation regex: starts with 1 letter followed by one or more numbers (e.g., A1, B12)
-        const boxRegex = /^[A-Za-z][0-9]+$/;
-
-        async function callGemini(promptText) {
-            const apiKey = localStorage.getItem('gemini_api_key');
-            if (!apiKey) {
-                throw new Error('Gemini API Key is missing. Please enter and save your API key at the top.');
-            }
-
-            const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ contents: [{ parts: [{ text: promptText }] }] })
-            });
-
-            if (!response.ok) {
-                throw new Error('Failed to connect to Gemini API. Check your API key.');
-            }
-
-            const data = await response.json();
-            return data.candidates[0].content.parts[0].text.trim();
-        }
-
-        // AI Fill Button
-        document.getElementById('aiFillBtn').addEventListener('click', async () => {
-            const brandName = document.getElementById('brandName').value.trim();
-            if (!brandName) {
-                alert('Please enter a Brand Name first.');
-                return;
-            }
-
-            const btn = document.getElementById('aiFillBtn');
-            btn.textContent = 'Thinking...';
-            
-            try {
-                const prompt = `Give only the active salt and strength composition for the medical tablet brand "${brandName}". Keep it concise (e.g., "Paracetamol 500mg"). Do not include extra text.`;
-                const composition = await callGemini(prompt);
-                document.getElementById('composition').value = composition;
-            } catch (error) {
-                alert(error.message);
-            } finally {
-                btn.textContent = '✨ AI Fill';
-            }
-        });
-
-        // Search Logic with Gemini Fallback
-        const searchInput = document.getElementById('searchInput');
-        const searchResults = document.getElementById('searchResults');
-
-        let searchTimeout;
-        searchInput.addEventListener('input', () => {
-            clearTimeout(searchTimeout);
-            searchTimeout = setTimeout(performSearch, 400);
-        });
-
-        async function performSearch() {
-            const query = searchInput.value.trim().toLowerCase();
-            const inventory = getInventory();
-
-            if (query === '') {
-                searchResults.innerHTML = `<p class="text-sm text-slate-400 italic">Start typing to search inventory...</p>`;
-                return;
-            }
-
-            const brandMatches = inventory.filter(item => item.brand_name.toLowerCase().includes(query));
-            if (brandMatches.length > 0) {
-                renderResults(brandMatches, '✓ Exact Brand Match Found', 'bg-blue-50', 'text-emerald-600', 'bg-blue-600');
-                return;
-            }
-
-            const compMatches = inventory.filter(item => item.composition.toLowerCase().includes(query));
-            if (compMatches.length > 0) {
-                renderResults(compMatches, '⚠️ Composition Match Found', 'bg-amber-50/50', 'text-amber-700', 'bg-amber-600');
-                return;
-            }
-
-            searchResults.innerHTML = `<div class="p-4 bg-purple-50 text-purple-800 rounded-xl text-sm flex items-center justify-between"><span>🤖 Searching composition via Gemini AI...</span></div>`;
-
-            try {
-                const prompt = `For the medicine brand or query "${query}", what is its generic active salt composition? Return ONLY the composition string (e.g., "Paracetamol 500mg"). If it's not a medicine, return "UNKNOWN".`;
-                const detectedComposition = await callGemini(prompt);
-
-                if (detectedComposition === 'UNKNOWN' || !detectedComposition) {
-                    searchResults.innerHTML = `<div class="p-4 bg-red-50 text-red-700 rounded-xl text-sm font-medium">No records found for "${query}".</div>`;
-                    return;
-                }
-
-                const aiMatches = inventory.filter(item => 
-                    item.composition.toLowerCase().includes(detectedComposition.toLowerCase()) ||
-                    detectedComposition.toLowerCase().includes(item.composition.toLowerCase())
-                );
-
-                if (aiMatches.length > 0) {
-                    searchResults.innerHTML = `
-                        <div class="p-3 bg-purple-50 border border-purple-200 rounded-xl mb-2">
-                            <p class="text-xs font-semibold text-purple-900">✨ AI Identified Salt: <span class="underline">${detectedComposition}</span></p>
-                            <p class="text-xs text-purple-700 mt-0.5">Found alternative brands in stock with this composition:</p>
-                        </div>
-                        ${aiMatches.map(item => `
-                            <div class="p-4 bg-purple-50/30 border border-purple-100 rounded-xl flex justify-between items-center gap-3 shadow-xs">
-                                <div class="overflow-hidden">
-                                    <h3 class="font-bold text-slate-900 text-base truncate">${item.brand_name}</h3>
-                                    <p class="text-xs text-purple-700 mt-0.5">Salt: ${item.composition}</p>
-                                </div>
-                                <div class="bg-purple-600 text-white px-3.5 py-2 rounded-xl font-bold text-xs sm:text-sm whitespace-nowrap shadow-sm">
-                                    📍 ${item.box_location}
-                                </div>
-                            </div>
-                        `).join('')}
-                    `;
-                } else {
-                    searchResults.innerHTML = `<div class="p-4 bg-red-50 text-red-700 rounded-xl text-sm font-medium">AI identified salt as "${detectedComposition}", but no matching boxes are in stock.</div>`;
-                }
-            } catch (error) {
-                searchResults.innerHTML = `<div class="p-4 bg-red-50 text-red-700 rounded-xl text-sm font-medium">Exact brand not found locally. (AI Error: ${error.message})</div>`;
-            }
-        }
-
-        function renderResults(items, headerText, cardBg, headerColor, badgeColor) {
-            searchResults.innerHTML = `
-                <p class="text-xs font-semibold ${headerColor} mb-2 uppercase tracking-wide">${headerText}</p>
-                ${items.map(item => `
-                    <div class="p-4 ${cardBg} border border-slate-200 rounded-xl flex justify-between items-center gap-3 shadow-xs">
-                        <div class="overflow-hidden">
-                            <h3 class="font-bold text-slate-900 text-base truncate">${item.brand_name}</h3>
-                            <p class="text-xs text-slate-500 mt-0.5">Composition: <span class="font-medium text-slate-700">${item.composition}</span></p>
-                        </div>
-                        <div class="${badgeColor} text-white px-3.5 py-2 rounded-xl font-bold text-xs sm:text-sm whitespace-nowrap shadow-sm">
-                            📍 ${item.box_location}
-                        </div>
-                    </div>
-                `).join('')}
-            `;
-        }
-
-        // Manual Form Submission with Validations
-        document.getElementById('manualForm').addEventListener('submit', (e) => {
-            e.preventDefault();
-            const brandName = document.getElementById('brandName').value.trim();
-            const composition = document.getElementById('composition').value.trim();
-            const boxLocation = document.getElementById('boxLocation').value.trim().toUpperCase();
-
-            // Validate Box Naming Format (e.g., A1)
-            if (!boxRegex.test(boxLocation)) {
-                alert('Invalid Box Location format! It must start with an alphabet followed by numbers (e.g., A1, B12).');
-                return;
-            }
-
-            const inventory = getInventory();
-
-            // Check for Duplicate Brand Entry
-            const isDuplicate = inventory.some(item => item.brand_name.toLowerCase() === brandName.toLowerCase());
-            if (isDuplicate) {
-                alert(`Duplicate entry error: The brand "${brandName}" already exists in the inventory.`);
-                return;
-            }
-
-            inventory.push({ brand_name: brandName, composition: composition, box_location: boxLocation });
-            localStorage.setItem('pharmacy_inventory_v4', JSON.stringify(inventory));
-
-            alert('Tablet details saved successfully!');
-            e.target.reset();
-            performSearch();
-        });
-
-        // Excel Upload Handler with Validations
-        document.getElementById('uploadBtn').addEventListener('click', async () => {
-            const fileInput = document.getElementById('excelFile');
-            if (!fileInput.files.length) {
-                alert('Please select an Excel file first.');
-                return;
-            }
-
-            const file = fileInput.files[0];
-            const reader = new FileReader();
-
-            reader.onload = async (e) => {
-                try {
-                    const data = new Uint8Array(e.target.result);
-                    const workbook = XLSX.read(data, { type: 'array' });
-                    const sheet = workbook.Sheets[workbook.SheetNames[0]];
-                    const rows = XLSX.utils.sheet_to_json(sheet);
-
-                    const inventory = getInventory();
-                    let count = 0;
-                    let skippedCount = 0;
-
-                    document.getElementById('uploadBtn').textContent = 'Processing...';
-
-                    for (const row of rows) {
-                        const brand = row.brand_name || row['Brand Name'] || row['Brand'] || '';
-                        let comp = row.composition || row['Composition'] || row['Salt'] || '';
-                        const box = String(row.box_location || row['Box Location'] || row['Box'] || '').trim().toUpperCase();
-
-                        if (brand && box) {
-                            // Validate Box format
-                            if (!boxRegex.test(box)) {
-                                skippedCount++;
-                                continue; // Skip invalid box formats
-                            }
-
-                            // Check duplicate brand
-                            const isDuplicate = inventory.some(item => item.brand_name.toLowerCase() === String(brand).toLowerCase());
-                            if (isDuplicate) {
-                                skippedCount++;
-                                continue; // Skip duplicates
-                            }
-
-                            if (!comp) {
-                                try {
-                                    const prompt = `Give only the active salt and strength composition for "${brand}". Keep it concise.`;
-                                    comp = await callGemini(prompt);
-                                } catch (err) {
-                                    comp = 'Unknown Composition';
-                                }
-                            }
-
-                            inventory.push({
-                                brand_name: String(brand),
-                                composition: String(comp),
-                                box_location: box
-                            });
-                            count++;
-                        }
-                    }
-
-                    localStorage.setItem('pharmacy_inventory_v4', JSON.stringify(inventory));
-                    alert(`Successfully imported ${count} items! (Skipped ${skippedCount} due to duplicates or invalid box formats).`);
-                    fileInput.value = '';
-                    performSearch();
-                } catch (error) {
-                    alert('Error processing file: ' + error.message);
-                } finally {
-                    document.getElementById('uploadBtn').textContent = 'Process & Import Excel';
-                }
-            };
-
-            reader.readAsArrayBuffer(file);
-        });
-    </script>
 </body>
 </html>

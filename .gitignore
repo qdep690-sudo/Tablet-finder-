@@ -1,0 +1,47 @@
+# Dependencies
+node_modules/
+
+# Environment / secret files
+.env
+.env.*
+!.env.example
+
+# SQLite database
+*.db
+*.db-shm
+*.db-wal
+
+# Logs
+*.log
+logs/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# VS Code settings
+.vscode/
+
+# Temporary files
+*.tmp
+*.temp
+
+# Excel files uploaded/generated locally
+*.xlsx
+*.xls
+
+# npm debug files
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+node_modules/
+
+.env
+.env.*
+
+!.env.example
+
+medicines.db
+*.db
+
+*.xlsx
