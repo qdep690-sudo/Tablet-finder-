@@ -4,12 +4,39 @@ document.addEventListener('DOMContentLoaded', () => {
     // BACKEND
     // ===============================================================
 
-    const API_BASE_URL = 'http://localhost:3000';
+    const IS_LOCAL =
+        window.location.hostname === 'localhost' ||
+        window.location.hostname === '127.0.0.1';
+
+    const API_BASE_URL = IS_LOCAL
+        ? 'http://localhost:3000'
+        : '';
+
+    // Local:
+    // http://localhost:3000/medicines
+    //
+    // Vercel:
+    // /api/medicines
+
+    const MEDICINES_API = IS_LOCAL
+        ? `${API_BASE_URL}/medicines`
+        : '/api/medicines';
+
+    // Local:
+    // http://localhost:3000/medicines/upload
+    //
+    // Vercel:
+    // /api/upload
+
+    const UPLOAD_API = IS_LOCAL
+        ? `${API_BASE_URL}/medicines/upload`
+        : '/api/upload';
 
 
     // ===============================================================
     // GEMINI API KEY - DEVELOPER ONLY
     // ===============================================================
+    //
     // Keep this empty for now.
     // Gemini AI will show a proper configuration message until
     // the developer configures the key.
@@ -29,118 +56,156 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
     // ===============================================================
-    // SQLITE INVENTORY
+    // INVENTORY
     // ===============================================================
 
     async function fetchAllInventory() {
 
         const response = await fetch(
-            `${API_BASE_URL}/medicines`
+            MEDICINES_API
         );
 
         if (!response.ok) {
+
             throw new Error(
-                'Could not load inventory from SQLite.'
+                'Could not load inventory from database.'
             );
+
         }
 
         return await response.json();
+
     }
 
 
     async function findByBrand(query) {
 
         const response = await fetch(
-            `${API_BASE_URL}/medicines`
+            MEDICINES_API
         );
 
         if (!response.ok) {
-            throw new Error('Search failed.');
+
+            throw new Error(
+                'Search failed.'
+            );
+
         }
 
-        const medicines = await response.json();
+        const medicines =
+            await response.json();
 
-        const search = query.toLowerCase();
+        const search =
+            query.toLowerCase();
 
         return medicines.filter(item =>
             item.brand_name &&
-            item.brand_name.toLowerCase().includes(search)
+            item.brand_name
+                .toLowerCase()
+                .includes(search)
         );
+
     }
 
 
     async function findByComposition(query) {
 
         const response = await fetch(
-            `${API_BASE_URL}/medicines`
+            MEDICINES_API
         );
 
         if (!response.ok) {
-            throw new Error('Search failed.');
+
+            throw new Error(
+                'Search failed.'
+            );
+
         }
 
-        const medicines = await response.json();
+        const medicines =
+            await response.json();
 
-        const search = query.toLowerCase();
+        const search =
+            query.toLowerCase();
 
         return medicines.filter(item =>
             item.composition &&
-            item.composition.toLowerCase().includes(search)
+            item.composition
+                .toLowerCase()
+                .includes(search)
         );
+
     }
 
 
     async function findExactBrand(brandName) {
 
         const response = await fetch(
-            `${API_BASE_URL}/medicines`
+            MEDICINES_API
         );
 
         if (!response.ok) {
-            throw new Error('Duplicate check failed.');
+
+            throw new Error(
+                'Duplicate check failed.'
+            );
+
         }
 
-        const medicines = await response.json();
+        const medicines =
+            await response.json();
 
         return medicines.filter(item =>
             item.brand_name &&
             item.brand_name.toLowerCase() ===
             brandName.toLowerCase()
         );
+
     }
 
 
     async function insertMedicine(record) {
 
-        const response = await fetch(
-            `${API_BASE_URL}/medicines`,
-            {
-                method: 'POST',
+        const response =
+            await fetch(
+                MEDICINES_API,
+                {
+                    method: 'POST',
 
-                headers: {
-                    'Content-Type': 'application/json'
-                },
+                    headers: {
+                        'Content-Type':
+                            'application/json'
+                    },
 
-                body: JSON.stringify(record)
-            }
-        );
+                    body:
+                        JSON.stringify(record)
+                }
+            );
 
-        const data = await response.json();
+
+        const data =
+            await response.json();
+
 
         if (!response.ok) {
 
             if (response.status === 409) {
+
                 throw new Error(
                     'Medicine already exists'
                 );
+
             }
 
             throw new Error(
-                data.message || 'Insert failed.'
+                data.message ||
+                'Insert failed.'
             );
+
         }
 
         return data;
+
     }
 
 
@@ -150,40 +215,47 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function callGemini(promptText) {
 
-        const apiKey = GEMINI_API_KEY.trim();
+        const apiKey =
+            GEMINI_API_KEY.trim();
+
 
         if (!apiKey) {
 
             throw new Error(
                 'Gemini AI is not configured. Please ask the developer to configure the Gemini API key.'
             );
+
         }
 
 
-        const response = await fetch(
-            `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
-            {
-                method: 'POST',
+        const response =
+            await fetch(
+                `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
+                {
+                    method: 'POST',
 
-                headers: {
-                    'Content-Type': 'application/json'
-                },
+                    headers: {
+                        'Content-Type':
+                            'application/json'
+                    },
 
-                body: JSON.stringify({
+                    body:
+                        JSON.stringify({
 
-                    contents: [
-                        {
-                            parts: [
+                            contents: [
                                 {
-                                    text: promptText
+                                    parts: [
+                                        {
+                                            text:
+                                                promptText
+                                        }
+                                    ]
                                 }
                             ]
-                        }
-                    ]
 
-                })
-            }
-        );
+                        })
+                }
+            );
 
 
         if (!response.ok) {
@@ -191,10 +263,12 @@ document.addEventListener('DOMContentLoaded', () => {
             throw new Error(
                 'Failed to connect to Gemini API. Check your API key.'
             );
+
         }
 
 
-        const data = await response.json();
+        const data =
+            await response.json();
 
 
         if (
@@ -207,6 +281,7 @@ document.addEventListener('DOMContentLoaded', () => {
             throw new Error(
                 'Gemini returned an unexpected response.'
             );
+
         }
 
 
@@ -217,6 +292,7 @@ document.addEventListener('DOMContentLoaded', () => {
             .map(part => part.text || '')
             .join('')
             .trim();
+
     }
 
 
@@ -225,7 +301,9 @@ document.addEventListener('DOMContentLoaded', () => {
     // ===============================================================
 
     const aiFillBtn =
-        document.getElementById('aiFillBtn');
+        document.getElementById(
+            'aiFillBtn'
+        );
 
 
     if (aiFillBtn) {
@@ -236,7 +314,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 const brandName =
                     document
-                        .getElementById('brandName')
+                        .getElementById(
+                            'brandName'
+                        )
                         .value
                         .trim();
 
@@ -248,19 +328,25 @@ document.addEventListener('DOMContentLoaded', () => {
                     );
 
                     return;
+
                 }
 
 
                 const btn =
-                    document.getElementById('aiFillBtn');
+                    document.getElementById(
+                        'aiFillBtn'
+                    );
 
 
                 const originalText =
                     btn.textContent;
 
 
-                btn.textContent = 'Thinking...';
-                btn.disabled = true;
+                btn.textContent =
+                    'Thinking...';
+
+                btn.disabled =
+                    true;
 
 
                 try {
@@ -270,24 +356,30 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
                     const composition =
-                        await callGemini(prompt);
+                        await callGemini(
+                            prompt
+                        );
 
 
                     document.getElementById(
                         'composition'
-                    ).value = composition;
+                    ).value =
+                        composition;
 
 
                 } catch (error) {
 
-                    alert(error.message);
+                    alert(
+                        error.message
+                    );
 
                 } finally {
 
                     btn.textContent =
                         originalText;
 
-                    btn.disabled = false;
+                    btn.disabled =
+                        false;
 
                 }
 
@@ -302,10 +394,16 @@ document.addEventListener('DOMContentLoaded', () => {
     // ===============================================================
 
     const searchInput =
-        document.getElementById('searchInput');
+        document.getElementById(
+            'searchInput'
+        );
+
 
     const searchResults =
-        document.getElementById('searchResults');
+        document.getElementById(
+            'searchResults'
+        );
+
 
     let searchTimeout;
 
@@ -316,7 +414,10 @@ document.addEventListener('DOMContentLoaded', () => {
             'input',
             () => {
 
-                clearTimeout(searchTimeout);
+                clearTimeout(
+                    searchTimeout
+                );
+
 
                 searchTimeout =
                     setTimeout(
@@ -340,19 +441,22 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (query === '') {
 
-            searchResults.innerHTML =
-                `<p class="text-sm text-slate-400 italic">
+            searchResults.innerHTML = `
+                <p class="text-sm text-slate-400 italic">
                     Start typing to search inventory...
-                </p>`;
+                </p>
+            `;
 
             return;
+
         }
 
 
-        searchResults.innerHTML =
-            `<div class="p-4 bg-slate-50 text-slate-500 rounded-xl text-sm">
+        searchResults.innerHTML = `
+            <div class="p-4 bg-slate-50 text-slate-500 rounded-xl text-sm">
                 Searching...
-            </div>`;
+            </div>
+        `;
 
 
         let brandMatches = [];
@@ -365,16 +469,20 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
 
             brandMatches =
-                await findByBrand(query);
+                await findByBrand(
+                    query
+                );
 
         } catch (error) {
 
-            searchResults.innerHTML =
-                `<div class="p-4 bg-red-50 text-red-700 rounded-xl text-sm font-medium">
-                    ${error.message}
-                </div>`;
+            searchResults.innerHTML = `
+                <div class="p-4 bg-red-50 text-red-700 rounded-xl text-sm font-medium">
+                    ${escapeHtml(error.message)}
+                </div>
+            `;
 
             return;
+
         }
 
 
@@ -389,6 +497,7 @@ document.addEventListener('DOMContentLoaded', () => {
             );
 
             return;
+
         }
 
 
@@ -402,16 +511,20 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
 
             compMatches =
-                await findByComposition(query);
+                await findByComposition(
+                    query
+                );
 
         } catch (error) {
 
-            searchResults.innerHTML =
-                `<div class="p-4 bg-red-50 text-red-700 rounded-xl text-sm font-medium">
-                    ${error.message}
-                </div>`;
+            searchResults.innerHTML = `
+                <div class="p-4 bg-red-50 text-red-700 rounded-xl text-sm font-medium">
+                    ${escapeHtml(error.message)}
+                </div>
+            `;
 
             return;
+
         }
 
 
@@ -426,6 +539,7 @@ document.addEventListener('DOMContentLoaded', () => {
             );
 
             return;
+
         }
 
 
@@ -433,10 +547,11 @@ document.addEventListener('DOMContentLoaded', () => {
         // GEMINI FALLBACK
         // ===========================================================
 
-        searchResults.innerHTML =
-            `<div class="p-4 bg-purple-50 text-purple-800 rounded-xl text-sm">
+        searchResults.innerHTML = `
+            <div class="p-4 bg-purple-50 text-purple-800 rounded-xl text-sm">
                 🤖 Searching composition via Gemini AI...
-            </div>`;
+            </div>
+        `;
 
 
         try {
@@ -446,20 +561,26 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
             const detectedComposition =
-                await callGemini(prompt);
+                await callGemini(
+                    prompt
+                );
 
 
             if (
-                detectedComposition.toUpperCase() === 'UNKNOWN' ||
+                detectedComposition
+                    .toUpperCase() ===
+                    'UNKNOWN' ||
                 !detectedComposition
             ) {
 
-                searchResults.innerHTML =
-                    `<div class="p-4 bg-red-50 text-red-700 rounded-xl text-sm font-medium">
-                        No records found for "${query}".
-                    </div>`;
+                searchResults.innerHTML = `
+                    <div class="p-4 bg-red-50 text-red-700 rounded-xl text-sm font-medium">
+                        No records found for "${escapeHtml(query)}".
+                    </div>
+                `;
 
                 return;
+
             }
 
 
@@ -480,11 +601,12 @@ document.addEventListener('DOMContentLoaded', () => {
                             ✨ AI Identified Salt:
 
                             <span class="underline">
-                                ${escapeHtml(detectedComposition)}
+                                ${escapeHtml(
+                                    detectedComposition
+                                )}
                             </span>
 
                         </p>
-
 
                         <p class="text-xs text-purple-700 mt-0.5">
                             Found alternative brands in stock with this composition:
@@ -500,12 +622,17 @@ document.addEventListener('DOMContentLoaded', () => {
                             <div class="overflow-hidden">
 
                                 <h3 class="font-bold text-slate-900 text-base truncate">
-                                    ${escapeHtml(item.brand_name)}
+                                    ${escapeHtml(
+                                        item.brand_name
+                                    )}
                                 </h3>
 
-
                                 <p class="text-xs text-purple-700 mt-0.5">
-                                    Salt: ${escapeHtml(item.composition || 'Not available')}
+                                    Salt:
+                                    ${escapeHtml(
+                                        item.composition ||
+                                        'Not available'
+                                    )}
                                 </p>
 
                             </div>
@@ -513,7 +640,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
                             <div class="bg-purple-600 text-white px-3.5 py-2 rounded-xl font-bold text-xs sm:text-sm whitespace-nowrap shadow-sm">
 
-                                📍 ${escapeHtml(item.box_location)}
+                                📍
+                                ${escapeHtml(
+                                    item.box_location
+                                )}
 
                             </div>
 
@@ -525,28 +655,33 @@ document.addEventListener('DOMContentLoaded', () => {
 
             } else {
 
-                searchResults.innerHTML =
-                    `<div class="p-4 bg-red-50 text-red-700 rounded-xl text-sm font-medium">
+                searchResults.innerHTML = `
+                    <div class="p-4 bg-red-50 text-red-700 rounded-xl text-sm font-medium">
 
-                        AI identified salt as "${escapeHtml(detectedComposition)}", but no matching boxes are in stock.
+                        AI identified salt as
+                        "${escapeHtml(detectedComposition)}",
+                        but no matching boxes are in stock.
 
-                    </div>`;
+                    </div>
+                `;
 
             }
 
 
         } catch (error) {
 
-            searchResults.innerHTML =
-                `<div class="p-4 bg-red-50 text-red-700 rounded-xl text-sm font-medium">
+            searchResults.innerHTML = `
+                <div class="p-4 bg-red-50 text-red-700 rounded-xl text-sm font-medium">
 
                     Exact brand not found locally.
 
                     <br>
 
-                    AI Error: ${escapeHtml(error.message)}
+                    AI Error:
+                    ${escapeHtml(error.message)}
 
-                </div>`;
+                </div>
+            `;
 
         }
 
@@ -579,7 +714,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     <div class="overflow-hidden">
 
                         <h3 class="font-bold text-slate-900 text-base truncate">
-                            ${escapeHtml(item.brand_name)}
+                            ${escapeHtml(
+                                item.brand_name
+                            )}
                         </h3>
 
 
@@ -588,7 +725,10 @@ document.addEventListener('DOMContentLoaded', () => {
                             Composition:
 
                             <span class="font-medium text-slate-700">
-                                ${escapeHtml(item.composition || 'Not available')}
+                                ${escapeHtml(
+                                    item.composition ||
+                                    'Not available'
+                                )}
                             </span>
 
                         </p>
@@ -598,7 +738,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
                     <div class="${badgeColor} text-white px-3.5 py-2 rounded-xl font-bold text-xs sm:text-sm whitespace-nowrap shadow-sm">
 
-                        📍 ${escapeHtml(item.box_location)}
+                        📍
+                        ${escapeHtml(
+                            item.box_location
+                        )}
 
                     </div>
 
@@ -632,7 +775,9 @@ document.addEventListener('DOMContentLoaded', () => {
     // ===============================================================
 
     const manualForm =
-        document.getElementById('manualForm');
+        document.getElementById(
+            'manualForm'
+        );
 
 
     if (manualForm) {
@@ -646,21 +791,27 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 const brandName =
                     document
-                        .getElementById('brandName')
+                        .getElementById(
+                            'brandName'
+                        )
                         .value
                         .trim();
 
 
                 const composition =
                     document
-                        .getElementById('composition')
+                        .getElementById(
+                            'composition'
+                        )
                         .value
                         .trim();
 
 
                 const boxLocation =
                     document
-                        .getElementById('boxLocation')
+                        .getElementById(
+                            'boxLocation'
+                        )
                         .value
                         .trim()
                         .toUpperCase();
@@ -677,6 +828,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     );
 
                     return;
+
                 }
 
 
@@ -690,8 +842,11 @@ document.addEventListener('DOMContentLoaded', () => {
                     submitBtn.textContent;
 
 
-                submitBtn.disabled = true;
-                submitBtn.textContent = 'Saving...';
+                submitBtn.disabled =
+                    true;
+
+                submitBtn.textContent =
+                    'Saving...';
 
 
                 try {
@@ -722,6 +877,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         );
 
                         return;
+
                     }
 
 
@@ -751,22 +907,27 @@ document.addEventListener('DOMContentLoaded', () => {
                     e.target.reset();
 
 
-                    searchInput.value = '';
+                    searchInput.value =
+                        '';
 
 
-                    searchResults.innerHTML =
-                        `<p class="text-sm text-slate-400 italic">
+                    searchResults.innerHTML = `
+                        <p class="text-sm text-slate-400 italic">
                             Start typing to search inventory...
-                        </p>`;
+                        </p>
+                    `;
 
 
                 } catch (error) {
 
-                    alert(error.message);
+                    alert(
+                        error.message
+                    );
 
                 } finally {
 
-                    submitBtn.disabled = false;
+                    submitBtn.disabled =
+                        false;
 
                     submitBtn.textContent =
                         originalBtnText;
@@ -784,13 +945,21 @@ document.addEventListener('DOMContentLoaded', () => {
     // ===============================================================
 
     const fileInput =
-        document.getElementById('excelFile');
+        document.getElementById(
+            'excelFile'
+        );
+
 
     const removeFileBtn =
-        document.getElementById('removeFileBtn');
+        document.getElementById(
+            'removeFileBtn'
+        );
+
 
     const uploadBtn =
-        document.getElementById('uploadBtn');
+        document.getElementById(
+            'uploadBtn'
+        );
 
 
     // ===============================================================
@@ -803,7 +972,9 @@ document.addEventListener('DOMContentLoaded', () => {
             'change',
             () => {
 
-                if (fileInput.files.length > 0) {
+                if (
+                    fileInput.files.length > 0
+                ) {
 
                     removeFileBtn.classList.remove(
                         'hidden'
@@ -833,7 +1004,8 @@ document.addEventListener('DOMContentLoaded', () => {
             'click',
             () => {
 
-                fileInput.value = '';
+                fileInput.value =
+                    '';
 
                 removeFileBtn.classList.add(
                     'hidden'
@@ -855,13 +1027,16 @@ document.addEventListener('DOMContentLoaded', () => {
             'click',
             async () => {
 
-                if (!fileInput.files.length) {
+                if (
+                    !fileInput.files.length
+                ) {
 
                     alert(
                         'Please select an Excel file first.'
                     );
 
                     return;
+
                 }
 
 
@@ -869,7 +1044,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     fileInput.files[0];
 
 
-                uploadBtn.disabled = true;
+                uploadBtn.disabled =
+                    true;
 
                 uploadBtn.textContent =
                     'Processing...';
@@ -889,7 +1065,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
                     const response =
                         await fetch(
-                            `${API_BASE_URL}/medicines/upload`,
+                            UPLOAD_API,
                             {
                                 method: 'POST',
                                 body: formData
@@ -908,9 +1084,6 @@ document.addEventListener('DOMContentLoaded', () => {
                             'Excel upload failed.';
 
 
-                        // Show detected columns when backend
-                        // could not recognize them.
-
                         if (
                             result.detectedColumns
                         ) {
@@ -921,7 +1094,9 @@ document.addEventListener('DOMContentLoaded', () => {
                         }
 
 
-                        throw new Error(message);
+                        throw new Error(
+                            message
+                        );
 
                     }
 
@@ -933,7 +1108,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
                     // Clear selected file
 
-                    fileInput.value = '';
+                    fileInput.value =
+                        '';
 
                     removeFileBtn.classList.add(
                         'hidden'
@@ -949,7 +1125,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 } finally {
 
-                    uploadBtn.disabled = false;
+                    uploadBtn.disabled =
+                        false;
 
                     uploadBtn.textContent =
                         'Process & Import Excel';
@@ -972,7 +1149,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     console.log(
         'Backend:',
-        API_BASE_URL
+        IS_LOCAL
+            ? API_BASE_URL
+            : 'Vercel API'
     );
 
 });

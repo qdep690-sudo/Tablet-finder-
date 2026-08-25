@@ -1,13 +1,15 @@
+require('dotenv').config();
+
 const express = require('express');
 const path = require('path');
-const Database = require('better-sqlite3');
 const cors = require('cors');
 const multer = require('multer');
 const XLSX = require('xlsx');
+const { createClient } = require('@libsql/client');
 
 const app = express();
 
-const PORT = 3000;
+const PORT = process.env.PORT || 3000;
 
 // ======================================================
 // MIDDLEWARE
@@ -16,13 +18,47 @@ const PORT = 3000;
 app.use(cors());
 app.use(express.json());
 
-// Serve all frontend files from the same folder
+// Serve frontend files locally
 app.use(express.static(__dirname));
 
-// Explicitly serve script.js
-app.get('/script.js', (req, res) => {
-    res.sendFile(path.join(__dirname, 'script.js'));
+
+// ======================================================
+// TURSO DATABASE
+// ======================================================
+
+if (!process.env.TURSO_DATABASE_URL) {
+    console.error('ERROR: TURSO_DATABASE_URL is missing.');
+}
+
+if (!process.env.TURSO_AUTH_TOKEN) {
+    console.error('ERROR: TURSO_AUTH_TOKEN is missing.');
+}
+
+const db = createClient({
+    url: process.env.TURSO_DATABASE_URL,
+    authToken: process.env.TURSO_AUTH_TOKEN
 });
+
+
+// ======================================================
+// CREATE MEDICINES TABLE
+// ======================================================
+
+async function initializeDatabase() {
+
+    await db.execute(`
+        CREATE TABLE IF NOT EXISTS medicines (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            brand_name TEXT NOT NULL UNIQUE,
+            composition TEXT,
+            box_location TEXT NOT NULL
+        )
+    `);
+
+    console.log('Turso database connected.');
+    console.log('Medicines table ready.');
+
+}
 
 
 // ======================================================
@@ -35,50 +71,32 @@ const upload = multer({
 
 
 // ======================================================
-// SQLITE DATABASE
-// ======================================================
-
-const db = new Database(
-    path.join(__dirname, 'medicines.db')
-);
-
-
-// ======================================================
-// CREATE MEDICINES TABLE
-// ======================================================
-
-db.prepare(`
-    CREATE TABLE IF NOT EXISTS medicines (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        brand_name TEXT NOT NULL UNIQUE,
-        composition TEXT,
-        box_location TEXT NOT NULL
-    )
-`).run();
-
-
-// ======================================================
 // GET ALL MEDICINES
 // ======================================================
 
-app.get('/medicines', (req, res) => {
+app.get('/medicines', async (req, res) => {
 
     try {
 
-        const medicines = db.prepare(`
-            SELECT *
+        const result = await db.execute(`
+            SELECT
+                id,
+                brand_name,
+                composition,
+                box_location
             FROM medicines
             ORDER BY brand_name ASC
-        `).all();
+        `);
 
-        res.json(medicines);
+        res.json(result.rows);
 
     } catch (error) {
 
         console.error('GET /medicines error:', error);
 
         res.status(500).json({
-            message: 'Could not load medicines'
+            message: 'Could not load medicines',
+            error: error.message
         });
 
     }
@@ -90,7 +108,7 @@ app.get('/medicines', (req, res) => {
 // ADD ONE MEDICINE
 // ======================================================
 
-app.post('/medicines', (req, res) => {
+app.post('/medicines', async (req, res) => {
 
     try {
 
@@ -110,19 +128,38 @@ app.post('/medicines', (req, res) => {
         }
 
 
+        const cleanBrandName =
+            String(brand_name).trim();
+
+        const cleanComposition =
+            composition
+                ? String(composition).trim()
+                : '';
+
+        const cleanBoxLocation =
+            String(box_location)
+                .trim()
+                .toUpperCase();
+
+
         // --------------------------------------------------
         // CHECK DUPLICATE
         // --------------------------------------------------
 
-        const existing = db.prepare(`
-            SELECT id
-            FROM medicines
-            WHERE LOWER(TRIM(brand_name))
-                = LOWER(TRIM(?))
-        `).get(brand_name);
+        const existing =
+            await db.execute({
+                sql: `
+                    SELECT id
+                    FROM medicines
+                    WHERE LOWER(TRIM(brand_name))
+                        = LOWER(TRIM(?))
+                    LIMIT 1
+                `,
+                args: [cleanBrandName]
+            });
 
 
-        if (existing) {
+        if (existing.rows.length > 0) {
 
             return res.status(409).json({
                 message: 'Medicine already exists'
@@ -135,25 +172,29 @@ app.post('/medicines', (req, res) => {
         // INSERT
         // --------------------------------------------------
 
-        const result = db.prepare(`
-            INSERT INTO medicines
-            (
-                brand_name,
-                composition,
-                box_location
-            )
-            VALUES (?, ?, ?)
-        `).run(
-            brand_name.trim(),
-            composition ? composition.trim() : '',
-            box_location.trim().toUpperCase()
-        );
+        const result =
+            await db.execute({
+                sql: `
+                    INSERT INTO medicines
+                    (
+                        brand_name,
+                        composition,
+                        box_location
+                    )
+                    VALUES (?, ?, ?)
+                `,
+                args: [
+                    cleanBrandName,
+                    cleanComposition,
+                    cleanBoxLocation
+                ]
+            });
 
 
         res.json({
-            id: result.lastInsertRowid,
-            message: 'Medicine added successfully'
-        });
+    id: Number(result.lastInsertRowid),
+    message: 'Medicine added successfully'
+});
 
 
     } catch (error) {
@@ -161,7 +202,8 @@ app.post('/medicines', (req, res) => {
         console.error('POST /medicines error:', error);
 
         res.status(500).json({
-            message: 'Could not add medicine'
+            message: 'Could not add medicine',
+            error: error.message
         });
 
     }
@@ -203,7 +245,9 @@ function findColumn(row, aliases) {
 
 
         if (
-            normalizedAliases.includes(normalizedKey)
+            normalizedAliases.includes(
+                normalizedKey
+            )
         ) {
 
             return key;
@@ -225,7 +269,10 @@ function findColumn(row, aliases) {
 function getValue(row, aliases) {
 
     const column =
-        findColumn(row, aliases);
+        findColumn(
+            row,
+            aliases
+        );
 
 
     if (!column) {
@@ -247,7 +294,7 @@ function getValue(row, aliases) {
 app.post(
     '/medicines/upload',
     upload.single('file'),
-    (req, res) => {
+    async (req, res) => {
 
         try {
 
@@ -564,7 +611,7 @@ app.post(
             let skipped = 0;
 
 
-            // Track duplicates inside current Excel
+            // Track duplicates in current Excel
             const excelMedicines =
                 new Set();
 
@@ -619,19 +666,11 @@ app.post(
                 }
 
 
-                // ------------------------------------------------
-                // NORMALIZE LOCATION
-                // ------------------------------------------------
-
                 const finalLocation =
                     boxLocation
                         .trim()
                         .toUpperCase();
 
-
-                // ------------------------------------------------
-                // DUPLICATE KEY
-                // ------------------------------------------------
 
                 const medicineKey =
                     brandName
@@ -662,25 +701,27 @@ app.post(
 
 
                 // ------------------------------------------------
-                // CHECK DATABASE
+                // CHECK TURSO DATABASE
                 // ------------------------------------------------
 
                 const existing =
-                    db.prepare(`
-                        SELECT id
-                        FROM medicines
-                        WHERE LOWER(TRIM(brand_name))
-                            = LOWER(TRIM(?))
-                    `).get(
-                        brandName
-                    );
+                    await db.execute({
+                        sql: `
+                            SELECT id
+                            FROM medicines
+                            WHERE LOWER(TRIM(brand_name))
+                                = LOWER(TRIM(?))
+                            LIMIT 1
+                        `,
+                        args: [brandName]
+                    });
 
 
                 // ------------------------------------------------
                 // ALREADY EXISTS
                 // ------------------------------------------------
 
-                if (existing) {
+                if (existing.rows.length > 0) {
 
                     duplicates++;
 
@@ -690,22 +731,25 @@ app.post(
 
 
                 // ------------------------------------------------
-                // INSERT
+                // INSERT INTO TURSO
                 // ------------------------------------------------
 
-                db.prepare(`
-                    INSERT INTO medicines
-                    (
-                        brand_name,
-                        composition,
-                        box_location
-                    )
-                    VALUES (?, ?, ?)
-                `).run(
-                    brandName.trim(),
-                    composition.trim(),
-                    finalLocation
-                );
+                await db.execute({
+                    sql: `
+                        INSERT INTO medicines
+                        (
+                            brand_name,
+                            composition,
+                            box_location
+                        )
+                        VALUES (?, ?, ?)
+                    `,
+                    args: [
+                        brandName.trim(),
+                        composition.trim(),
+                        finalLocation
+                    ]
+                });
 
 
                 added++;
@@ -800,16 +844,39 @@ app.get('/', (req, res) => {
 
 
 // ======================================================
-// TEST SCRIPT.JS ROUTE
+// TEST TURSO CONNECTION
 // ======================================================
 
-app.get('/test-script', (req, res) => {
+app.get('/test-turso', async (req, res) => {
 
-    res.json({
-        success: true,
-        scriptPath: path.join(__dirname, 'script.js'),
-        message: 'Server can access script.js'
-    });
+    try {
+
+        const result =
+            await db.execute(`
+                SELECT COUNT(*) AS count
+                FROM medicines
+            `);
+
+        res.json({
+            success: true,
+            database: 'Turso',
+            medicineCount: result.rows[0].count
+        });
+
+    } catch (error) {
+
+        console.error(
+            'Turso connection test failed:',
+            error
+        );
+
+        res.status(500).json({
+            success: false,
+            message: 'Turso connection failed',
+            error: error.message
+        });
+
+    }
 
 });
 
@@ -818,10 +885,32 @@ app.get('/test-script', (req, res) => {
 // START SERVER
 // ======================================================
 
-app.listen(PORT, () => {
+async function startServer() {
 
-    console.log(
-        `Server running on http://localhost:${PORT}`
-    );
+    try {
 
-});
+        await initializeDatabase();
+
+        app.listen(PORT, () => {
+
+            console.log(
+                `Server running on http://localhost:${PORT}`
+            );
+
+        });
+
+    } catch (error) {
+
+        console.error(
+            'Failed to start server:',
+            error
+        );
+
+        process.exit(1);
+
+    }
+
+}
+
+
+startServer();
