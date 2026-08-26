@@ -1,174 +1,200 @@
 document.addEventListener('DOMContentLoaded', () => {
 
-    // ===============================================================
-    // BACKEND
-    // ===============================================================
+    // ==========================================================
+    // API URL
+    // ==========================================================
 
-    const IS_LOCAL =
+    const API_BASE_URL =
         window.location.hostname === 'localhost' ||
-        window.location.hostname === '127.0.0.1';
-
-    const API_BASE_URL = IS_LOCAL
-        ? 'http://localhost:3000'
-        : '';
-
-    // Local:
-    // http://localhost:3000/medicines
-    //
-    // Vercel:
-    // /api/medicines
-
-    const MEDICINES_API = IS_LOCAL
-        ? `${API_BASE_URL}/medicines`
-        : '/api/medicines';
-
-    // Local:
-    // http://localhost:3000/medicines/upload
-    //
-    // Vercel:
-    // /api/upload
-
-    const UPLOAD_API = IS_LOCAL
-        ? `${API_BASE_URL}/medicines/upload`
-        : '/api/upload';
+        window.location.hostname === '127.0.0.1'
+            ? 'http://localhost:3000'
+            : '';
 
 
-    // ===============================================================
-    // GEMINI API KEY - DEVELOPER ONLY
-    // ===============================================================
-    //
-    // Keep this empty for now.
-    // Gemini AI will show a proper configuration message until
-    // the developer configures the key.
-    //
-    // IMPORTANT:
-    // Do NOT put a production Gemini API key in frontend code.
-    // A frontend key is visible to users.
+    // ==========================================================
+    // GEMINI
+    // ==========================================================
 
     const GEMINI_API_KEY = '';
 
 
-    // ===============================================================
+    // ==========================================================
     // BOX VALIDATION
-    // ===============================================================
+    // ==========================================================
 
     const boxRegex = /^[A-Za-z][0-9]+$/;
 
 
-    // ===============================================================
-    // INVENTORY
-    // ===============================================================
+    // ==========================================================
+    // SEARCH CACHE
+    // ==========================================================
 
-    async function fetchAllInventory() {
+    const searchCache = new Map();
 
-        const response = await fetch(
-            MEDICINES_API
-        );
 
-        if (!response.ok) {
+    // ==========================================================
+    // API URL
+    // ==========================================================
 
-            throw new Error(
-                'Could not load inventory from database.'
-            );
+    function getMedicinesUrl(search = '') {
 
+        const url =
+            API_BASE_URL
+                ? `${API_BASE_URL}/medicines`
+                : '/api/medicines';
+
+        if (!search) {
+            return url;
         }
 
-        return await response.json();
+        return `${url}?search=${encodeURIComponent(search)}`;
 
     }
 
 
-    async function findByBrand(query) {
+    // ==========================================================
+    // UPLOAD URL
+    // ==========================================================
 
-        const response = await fetch(
-            MEDICINES_API
-        );
+    function getUploadUrl() {
 
-        if (!response.ok) {
+        return API_BASE_URL
+            ? `${API_BASE_URL}/medicines/upload`
+            : '/api/upload';
 
-            throw new Error(
-                'Search failed.'
-            );
+    }
 
-        }
 
-        const medicines =
-            await response.json();
+    // ==========================================================
+    // ESCAPE HTML
+    // ==========================================================
+
+    function escapeHtml(value) {
+
+        return String(value ?? '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
+
+    }
+
+
+    // ==========================================================
+    // SEARCH DATABASE
+    // ONE REQUEST ONLY
+    // ==========================================================
+
+    async function searchMedicines(query) {
 
         const search =
-            query.toLowerCase();
-
-        return medicines.filter(item =>
-            item.brand_name &&
-            item.brand_name
-                .toLowerCase()
-                .includes(search)
-        );
-
-    }
+            query
+                .trim()
+                .toLowerCase();
 
 
-    async function findByComposition(query) {
+        if (!search) {
+            return [];
+        }
 
-        const response = await fetch(
-            MEDICINES_API
-        );
 
-        if (!response.ok) {
+        // ------------------------------------------------------
+        // CHECK CACHE
+        // ------------------------------------------------------
 
-            throw new Error(
-                'Search failed.'
-            );
+        if (
+            searchCache.has(search)
+        ) {
+
+            return searchCache.get(search);
 
         }
 
-        const medicines =
-            await response.json();
 
-        const search =
-            query.toLowerCase();
-
-        return medicines.filter(item =>
-            item.composition &&
-            item.composition
-                .toLowerCase()
-                .includes(search)
-        );
-
-    }
-
-
-    async function findExactBrand(brandName) {
-
-        const response = await fetch(
-            MEDICINES_API
-        );
-
-        if (!response.ok) {
-
-            throw new Error(
-                'Duplicate check failed.'
-            );
-
-        }
-
-        const medicines =
-            await response.json();
-
-        return medicines.filter(item =>
-            item.brand_name &&
-            item.brand_name.toLowerCase() ===
-            brandName.toLowerCase()
-        );
-
-    }
-
-
-    async function insertMedicine(record) {
+        // ------------------------------------------------------
+        // TURSO SEARCH
+        // ------------------------------------------------------
 
         const response =
             await fetch(
-                MEDICINES_API,
+                getMedicinesUrl(search)
+            );
+
+
+        if (!response.ok) {
+
+            throw new Error(
+                'Search failed.'
+            );
+
+        }
+
+
+        const results =
+            await response.json();
+
+
+        // ------------------------------------------------------
+        // SAVE CACHE
+        // ------------------------------------------------------
+
+        searchCache.set(
+            search,
+            results
+        );
+
+
+        return results;
+
+    }
+
+
+    // ==========================================================
+    // EXACT BRAND CHECK
+    // ==========================================================
+
+    async function findExactBrand(
+        brandName
+    ) {
+
+        const results =
+            await searchMedicines(
+                brandName
+            );
+
+
+        return results.filter(item =>
+
+            item.brand_name &&
+            item.brand_name
+                .toLowerCase()
+                ===
+            brandName
+                .toLowerCase()
+
+        );
+
+    }
+
+
+    // ==========================================================
+    // ADD MEDICINE
+    // ==========================================================
+
+    async function insertMedicine(
+        record
+    ) {
+
+        const url =
+            API_BASE_URL
+                ? `${API_BASE_URL}/medicines`
+                : '/api/medicines';
+
+
+        const response =
+            await fetch(
+                url,
                 {
                     method: 'POST',
 
@@ -178,7 +204,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     },
 
                     body:
-                        JSON.stringify(record)
+                        JSON.stringify(
+                            record
+                        )
                 }
             );
 
@@ -189,13 +217,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (!response.ok) {
 
-            if (response.status === 409) {
+            if (
+                response.status === 409
+            ) {
 
                 throw new Error(
                     'Medicine already exists'
                 );
 
             }
+
 
             throw new Error(
                 data.message ||
@@ -204,16 +235,25 @@ document.addEventListener('DOMContentLoaded', () => {
 
         }
 
+
+        // Clear cache because
+        // database changed.
+
+        searchCache.clear();
+
+
         return data;
 
     }
 
 
-    // ===============================================================
-    // GEMINI API
-    // ===============================================================
+    // ==========================================================
+    // GEMINI
+    // ==========================================================
 
-    async function callGemini(promptText) {
+    async function callGemini(
+        promptText
+    ) {
 
         const apiKey =
             GEMINI_API_KEY.trim();
@@ -222,7 +262,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!apiKey) {
 
             throw new Error(
-                'Gemini AI is not configured. Please ask the developer to configure the Gemini API key.'
+                'Gemini AI is not configured.'
             );
 
         }
@@ -261,7 +301,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!response.ok) {
 
             throw new Error(
-                'Failed to connect to Gemini API. Check your API key.'
+                'Failed to connect to Gemini API.'
             );
 
         }
@@ -289,16 +329,19 @@ document.addEventListener('DOMContentLoaded', () => {
             .candidates[0]
             .content
             .parts
-            .map(part => part.text || '')
+            .map(
+                part =>
+                    part.text || ''
+            )
             .join('')
             .trim();
 
     }
 
 
-    // ===============================================================
+    // ==========================================================
     // AI FILL
-    // ===============================================================
+    // ==========================================================
 
     const aiFillBtn =
         document.getElementById(
@@ -332,27 +375,21 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
 
 
-                const btn =
-                    document.getElementById(
-                        'aiFillBtn'
-                    );
-
-
                 const originalText =
-                    btn.textContent;
+                    aiFillBtn.textContent;
 
 
-                btn.textContent =
+                aiFillBtn.textContent =
                     'Thinking...';
 
-                btn.disabled =
+                aiFillBtn.disabled =
                     true;
 
 
                 try {
 
                     const prompt =
-                        `Give only the active salt and strength composition for the medical tablet brand "${brandName}". Keep it concise (e.g., "Paracetamol 500mg"). Do not include extra text.`;
+                        `Give only the active salt and strength composition for the medical tablet brand "${brandName}". Keep it concise. Do not include extra text.`;
 
 
                     const composition =
@@ -361,9 +398,11 @@ document.addEventListener('DOMContentLoaded', () => {
                         );
 
 
-                    document.getElementById(
-                        'composition'
-                    ).value =
+                    document
+                        .getElementById(
+                            'composition'
+                        )
+                        .value =
                         composition;
 
 
@@ -375,10 +414,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 } finally {
 
-                    btn.textContent =
+                    aiFillBtn.textContent =
                         originalText;
 
-                    btn.disabled =
+                    aiFillBtn.disabled =
                         false;
 
                 }
@@ -389,9 +428,9 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
 
-    // ===============================================================
-    // SEARCH
-    // ===============================================================
+    // ==========================================================
+    // SEARCH BOX
+    // ==========================================================
 
     const searchInput =
         document.getElementById(
@@ -405,7 +444,9 @@ document.addEventListener('DOMContentLoaded', () => {
         );
 
 
-    let searchTimeout;
+    let searchTimeout = null;
+
+    let latestSearchNumber = 0;
 
 
     if (searchInput) {
@@ -422,7 +463,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 searchTimeout =
                     setTimeout(
                         performSearch,
-                        400
+                        100
                     );
 
             }
@@ -431,15 +472,23 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
 
+    // ==========================================================
+    // PERFORM SEARCH
+    // ==========================================================
+
     async function performSearch() {
 
         const query =
-            searchInput.value
-                .trim()
-                .toLowerCase();
+            searchInput
+                .value
+                .trim();
 
 
-        if (query === '') {
+        const searchNumber =
+            ++latestSearchNumber;
+
+
+        if (!query) {
 
             searchResults.innerHTML = `
                 <p class="text-sm text-slate-400 italic">
@@ -459,118 +508,57 @@ document.addEventListener('DOMContentLoaded', () => {
         `;
 
 
-        let brandMatches = [];
-
-
-        // ===========================================================
-        // SEARCH BRAND
-        // ===========================================================
-
         try {
 
-            brandMatches =
-                await findByBrand(
+            // ==================================================
+            // ONE DATABASE REQUEST
+            // ==================================================
+
+            const results =
+                await searchMedicines(
                     query
                 );
 
-        } catch (error) {
 
-            searchResults.innerHTML = `
-                <div class="p-4 bg-red-50 text-red-700 rounded-xl text-sm font-medium">
-                    ${escapeHtml(error.message)}
-                </div>
-            `;
-
-            return;
-
-        }
-
-
-        if (brandMatches.length > 0) {
-
-            renderResults(
-                brandMatches,
-                '✓ Brand Match Found',
-                'bg-blue-50',
-                'text-emerald-600',
-                'bg-blue-600'
-            );
-
-            return;
-
-        }
-
-
-        // ===========================================================
-        // SEARCH COMPOSITION
-        // ===========================================================
-
-        let compMatches = [];
-
-
-        try {
-
-            compMatches =
-                await findByComposition(
-                    query
-                );
-
-        } catch (error) {
-
-            searchResults.innerHTML = `
-                <div class="p-4 bg-red-50 text-red-700 rounded-xl text-sm font-medium">
-                    ${escapeHtml(error.message)}
-                </div>
-            `;
-
-            return;
-
-        }
-
-
-        if (compMatches.length > 0) {
-
-            renderResults(
-                compMatches,
-                '⚠️ Composition Match Found',
-                'bg-amber-50/50',
-                'text-amber-700',
-                'bg-amber-600'
-            );
-
-            return;
-
-        }
-
-
-        // ===========================================================
-        // GEMINI FALLBACK
-        // ===========================================================
-
-        searchResults.innerHTML = `
-            <div class="p-4 bg-purple-50 text-purple-800 rounded-xl text-sm">
-                🤖 Searching composition via Gemini AI...
-            </div>
-        `;
-
-
-        try {
-
-            const prompt =
-                `For the medicine brand or query "${query}", what is its generic active salt composition? Return ONLY the composition string (e.g., "Paracetamol 500mg"). If it's not a medicine, return "UNKNOWN".`;
-
-
-            const detectedComposition =
-                await callGemini(
-                    prompt
-                );
-
+            // Ignore old request
 
             if (
-                detectedComposition
-                    .toUpperCase() ===
-                    'UNKNOWN' ||
-                !detectedComposition
+                searchNumber !==
+                latestSearchNumber
+            ) {
+
+                return;
+
+            }
+
+
+            // ==================================================
+            // RESULTS FOUND
+            // ==================================================
+
+            if (
+                results.length > 0
+            ) {
+
+                renderResults(
+                    results,
+                    '✓ Match Found',
+                    'bg-blue-50',
+                    'text-emerald-600',
+                    'bg-blue-600'
+                );
+
+                return;
+
+            }
+
+
+            // ==================================================
+            // GEMINI ONLY AFTER 3 CHARACTERS
+            // ==================================================
+
+            if (
+                query.length < 3
             ) {
 
                 searchResults.innerHTML = `
@@ -584,84 +572,137 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
 
-            const aiMatches =
-                await findByComposition(
+            searchResults.innerHTML = `
+                <div class="p-4 bg-purple-50 text-purple-800 rounded-xl text-sm">
+                    🤖 Searching composition via Gemini AI...
+                </div>
+            `;
+
+
+            try {
+
+                const prompt =
+                    `For the medicine brand or query "${query}", what is its generic active salt composition? Return ONLY the composition string. If it is not a medicine, return "UNKNOWN".`;
+
+
+                const detectedComposition =
+                    await callGemini(
+                        prompt
+                    );
+
+
+                if (
+                    !detectedComposition ||
                     detectedComposition
-                );
+                        .toUpperCase()
+                        === 'UNKNOWN'
+                ) {
+
+                    searchResults.innerHTML = `
+                        <div class="p-4 bg-red-50 text-red-700 rounded-xl text-sm font-medium">
+                            No records found for "${escapeHtml(query)}".
+                        </div>
+                    `;
+
+                    return;
+
+                }
 
 
-            if (aiMatches.length > 0) {
+                // Search Turso ONE more time
+                // only when Gemini is actually needed.
 
-                searchResults.innerHTML = `
-
-                    <div class="p-3 bg-purple-50 border border-purple-200 rounded-xl mb-2">
-
-                        <p class="text-xs font-semibold text-purple-900">
-
-                            ✨ AI Identified Salt:
-
-                            <span class="underline">
-                                ${escapeHtml(
-                                    detectedComposition
-                                )}
-                            </span>
-
-                        </p>
-
-                        <p class="text-xs text-purple-700 mt-0.5">
-                            Found alternative brands in stock with this composition:
-                        </p>
-
-                    </div>
+                const aiResults =
+                    await searchMedicines(
+                        detectedComposition
+                    );
 
 
-                    ${aiMatches.map(item => `
+                if (
+                    aiResults.length > 0
+                ) {
 
-                        <div class="p-4 bg-purple-50/30 border border-purple-100 rounded-xl flex justify-between items-center gap-3 shadow-xs">
+                    searchResults.innerHTML = `
 
-                            <div class="overflow-hidden">
+                        <div class="p-3 bg-purple-50 border border-purple-200 rounded-xl mb-2">
 
-                                <h3 class="font-bold text-slate-900 text-base truncate">
+                            <p class="text-xs font-semibold text-purple-900">
+
+                                ✨ AI Identified Salt:
+
+                                <span class="underline">
                                     ${escapeHtml(
-                                        item.brand_name
+                                        detectedComposition
                                     )}
-                                </h3>
+                                </span>
 
-                                <p class="text-xs text-purple-700 mt-0.5">
-                                    Salt:
-                                    ${escapeHtml(
-                                        item.composition ||
-                                        'Not available'
-                                    )}
-                                </p>
+                            </p>
 
-                            </div>
-
-
-                            <div class="bg-purple-600 text-white px-3.5 py-2 rounded-xl font-bold text-xs sm:text-sm whitespace-nowrap shadow-sm">
-
-                                📍
-                                ${escapeHtml(
-                                    item.box_location
-                                )}
-
-                            </div>
+                            <p class="text-xs text-purple-700 mt-0.5">
+                                Found alternative brands in stock:
+                            </p>
 
                         </div>
 
-                    `).join('')}
+                        ${aiResults.map(
+                            item => `
 
-                `;
+                            <div class="p-4 bg-purple-50/30 border border-purple-100 rounded-xl flex justify-between items-center gap-3 shadow-xs">
 
-            } else {
+                                <div class="overflow-hidden">
+
+                                    <h3 class="font-bold text-slate-900 text-base truncate">
+                                        ${escapeHtml(
+                                            item.brand_name
+                                        )}
+                                    </h3>
+
+                                    <p class="text-xs text-purple-700 mt-0.5">
+                                        Salt:
+                                        ${escapeHtml(
+                                            item.composition ||
+                                            'Not available'
+                                        )}
+                                    </p>
+
+                                </div>
+
+                                <div class="bg-purple-600 text-white px-3.5 py-2 rounded-xl font-bold text-xs sm:text-sm whitespace-nowrap shadow-sm">
+
+                                    📍
+                                    ${escapeHtml(
+                                        item.box_location
+                                    )}
+
+                                </div>
+
+                            </div>
+
+                        `
+                        ).join('')}
+
+                    `;
+
+                } else {
+
+                    searchResults.innerHTML = `
+
+                        <div class="p-4 bg-red-50 text-red-700 rounded-xl text-sm font-medium">
+
+                            No matching medicine found in stock.
+
+                        </div>
+
+                    `;
+
+                }
+
+
+            } catch (error) {
 
                 searchResults.innerHTML = `
                     <div class="p-4 bg-red-50 text-red-700 rounded-xl text-sm font-medium">
-
-                        AI identified salt as
-                        "${escapeHtml(detectedComposition)}",
-                        but no matching boxes are in stock.
-
+                        No local record found.
                     </div>
                 `;
 
@@ -672,14 +713,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
             searchResults.innerHTML = `
                 <div class="p-4 bg-red-50 text-red-700 rounded-xl text-sm font-medium">
-
-                    Exact brand not found locally.
-
-                    <br>
-
-                    AI Error:
-                    ${escapeHtml(error.message)}
-
+                    ${escapeHtml(
+                        error.message
+                    )}
                 </div>
             `;
 
@@ -688,9 +724,9 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
 
-    // ===============================================================
-    // RENDER SEARCH RESULTS
-    // ===============================================================
+    // ==========================================================
+    // RENDER RESULTS
+    // ==========================================================
 
     function renderResults(
         items,
@@ -706,35 +742,37 @@ document.addEventListener('DOMContentLoaded', () => {
                 ${headerText}
             </p>
 
-
-            ${items.map(item => `
+            ${items.map(
+                item => `
 
                 <div class="p-4 ${cardBg} border border-slate-200 rounded-xl flex justify-between items-center gap-3 shadow-xs">
 
                     <div class="overflow-hidden">
 
                         <h3 class="font-bold text-slate-900 text-base truncate">
+
                             ${escapeHtml(
                                 item.brand_name
                             )}
-                        </h3>
 
+                        </h3>
 
                         <p class="text-xs text-slate-500 mt-0.5">
 
                             Composition:
 
                             <span class="font-medium text-slate-700">
+
                                 ${escapeHtml(
                                     item.composition ||
                                     'Not available'
                                 )}
+
                             </span>
 
                         </p>
 
                     </div>
-
 
                     <div class="${badgeColor} text-white px-3.5 py-2 rounded-xl font-bold text-xs sm:text-sm whitespace-nowrap shadow-sm">
 
@@ -747,32 +785,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 </div>
 
-            `).join('')}
+            `
+            ).join('')}
 
         `;
 
     }
 
 
-    // ===============================================================
-    // ESCAPE HTML
-    // ===============================================================
-
-    function escapeHtml(value) {
-
-        return String(value ?? '')
-            .replace(/&/g, '&amp;')
-            .replace(/</g, '&lt;')
-            .replace(/>/g, '&gt;')
-            .replace(/"/g, '&quot;')
-            .replace(/'/g, '&#039;');
-
-    }
-
-
-    // ===============================================================
+    // ==========================================================
     // MANUAL FORM
-    // ===============================================================
+    // ==========================================================
 
     const manualForm =
         document.getElementById(
@@ -784,7 +807,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         manualForm.addEventListener(
             'submit',
-            async (e) => {
+            async e => {
 
                 e.preventDefault();
 
@@ -817,11 +840,22 @@ document.addEventListener('DOMContentLoaded', () => {
                         .toUpperCase();
 
 
-                // ------------------------------------------------
-                // VALIDATE BOX
-                // ------------------------------------------------
+                if (!brandName) {
 
-                if (!boxRegex.test(boxLocation)) {
+                    alert(
+                        'Please enter a Brand Name.'
+                    );
+
+                    return;
+
+                }
+
+
+                if (
+                    !boxRegex.test(
+                        boxLocation
+                    )
+                ) {
 
                     alert(
                         'Invalid Box Location format! It must start with an alphabet followed by numbers (e.g., A1, B12).'
@@ -838,7 +872,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     );
 
 
-                const originalBtnText =
+                const originalText =
                     submitBtn.textContent;
 
 
@@ -851,26 +885,22 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 try {
 
-                    // ------------------------------------------------
-                    // DUPLICATE CHECK
-                    // ------------------------------------------------
-
                     const existing =
                         await findExactBrand(
                             brandName
                         );
 
 
-                    const isDuplicate =
+                    if (
                         existing.some(
                             item =>
                                 item.brand_name
-                                    .toLowerCase() ===
-                                brandName.toLowerCase()
-                        );
-
-
-                    if (isDuplicate) {
+                                    .toLowerCase()
+                                ===
+                                brandName
+                                    .toLowerCase()
+                        )
+                    ) {
 
                         alert(
                             `⚠️ WARNING: The brand "${brandName}" already exists in the inventory.`
@@ -880,10 +910,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
                     }
 
-
-                    // ------------------------------------------------
-                    // INSERT
-                    // ------------------------------------------------
 
                     await insertMedicine({
 
@@ -906,10 +932,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
                     e.target.reset();
 
-
-                    searchInput.value =
-                        '';
-
+                    searchInput.value = '';
 
                     searchResults.innerHTML = `
                         <p class="text-sm text-slate-400 italic">
@@ -930,7 +953,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         false;
 
                     submitBtn.textContent =
-                        originalBtnText;
+                        originalText;
 
                 }
 
@@ -940,9 +963,9 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
 
-    // ===============================================================
+    // ==========================================================
     // EXCEL UPLOAD
-    // ===============================================================
+    // ==========================================================
 
     const fileInput =
         document.getElementById(
@@ -961,10 +984,6 @@ document.addEventListener('DOMContentLoaded', () => {
             'uploadBtn'
         );
 
-
-    // ===============================================================
-    // SHOW REMOVE BUTTON
-    // ===============================================================
 
     if (fileInput) {
 
@@ -994,18 +1013,13 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
 
-    // ===============================================================
-    // REMOVE SELECTED FILE
-    // ===============================================================
-
     if (removeFileBtn) {
 
         removeFileBtn.addEventListener(
             'click',
             () => {
 
-                fileInput.value =
-                    '';
+                fileInput.value = '';
 
                 removeFileBtn.classList.add(
                     'hidden'
@@ -1016,10 +1030,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     }
 
-
-    // ===============================================================
-    // PROCESS & IMPORT EXCEL
-    // ===============================================================
 
     if (uploadBtn) {
 
@@ -1065,10 +1075,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
                     const response =
                         await fetch(
-                            UPLOAD_API,
+                            getUploadUrl(),
                             {
                                 method: 'POST',
-                                body: formData
+                                body:
+                                    formData
                             }
                         );
 
@@ -1089,7 +1100,11 @@ document.addEventListener('DOMContentLoaded', () => {
                         ) {
 
                             message +=
-                                `\n\nDetected columns:\n${result.detectedColumns.join(', ')}`;
+                                `\n\nDetected columns:\n${
+                                    result
+                                        .detectedColumns
+                                        .join(', ')
+                                }`;
 
                         }
 
@@ -1101,19 +1116,38 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
 
 
+                    // Clear cache because
+                    // Excel changed database.
+
+                    searchCache.clear();
+
+
                     alert(
-                        `Excel processed successfully!\n\nAdded: ${result.added}\nDuplicates ignored: ${result.duplicatesIgnored}\nSkipped: ${result.skipped || 0}`
+                        `Excel processed successfully!\n\n` +
+                        `Added: ${
+                            result.added || 0
+                        }\n` +
+                        `Duplicates ignored: ${
+                            result.duplicatesIgnored || 0
+                        }\n` +
+                        `Skipped: ${
+                            result.skipped || 0
+                        }`
                     );
 
 
-                    // Clear selected file
+                    fileInput.value = '';
 
-                    fileInput.value =
-                        '';
 
-                    removeFileBtn.classList.add(
-                        'hidden'
-                    );
+                    if (
+                        removeFileBtn
+                    ) {
+
+                        removeFileBtn.classList.add(
+                            'hidden'
+                        );
+
+                    }
 
 
                 } catch (error) {
@@ -1139,19 +1173,12 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
 
-    // ===============================================================
-    // PAGE READY CHECK
-    // ===============================================================
+    // ==========================================================
+    // READY
+    // ==========================================================
 
     console.log(
         'Smart Pharmacy application loaded successfully.'
-    );
-
-    console.log(
-        'Backend:',
-        IS_LOCAL
-            ? API_BASE_URL
-            : 'Vercel API'
     );
 
 });
